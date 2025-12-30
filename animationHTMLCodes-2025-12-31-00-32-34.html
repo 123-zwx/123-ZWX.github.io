@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>光之美学：光通量、照度、色温与显色性</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;700&family=Roboto:wght@300;400;700&display=swap');
+
+        :root {
+            --bg-color: #f4f4f6;
+            --text-color: #2c3e50;
+            --accent-color: #e67e22;
+            --warm-light: rgba(255, 200, 100, 0.6);
+            --cool-light: rgba(200, 220, 255, 0.6);
+            --font-main: 'Roboto', 'Noto Sans SC', sans-serif;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #1a1a1a; /* Outer frame dark */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            font-family: var(--font-main);
+        }
+
+        /* The Stage (16:9 Aspect Ratio) */
+        #stage {
+            width: 100%;
+            max-width: 1280px;
+            aspect-ratio: 16/9;
+            background-color: var(--bg-color);
+            position: relative;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            overflow: hidden;
+            border-radius: 8px;
+        }
+
+        /* UI Layer */
+        .layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        /* Subtitles */
+        #subtitle-box {
+            position: absolute;
+            bottom: 40px;
+            width: 100%;
+            text-align: center;
+            z-index: 100;
+            transition: opacity 0.5s;
+        }
+
+        .subtitle-cn {
+            font-size: 28px;
+            font-weight: 700;
+            color: #333;
+            text-shadow: 0 2px 4px rgba(255,255,255,0.8);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .subtitle-en {
+            font-size: 16px;
+            font-weight: 300;
+            color: #555;
+            text-shadow: 0 1px 2px rgba(255,255,255,0.8);
+            display: block;
+            letter-spacing: 0.5px;
+        }
+
+        /* Title Card */
+        #title-card {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: #fff;
+            z-index: 90;
+            opacity: 1;
+            transition: opacity 1s;
+        }
+        #title-card h1 {
+            font-size: 4rem;
+            margin: 0;
+            background: linear-gradient(45deg, #ff9900, #ffcc00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        #title-card p {
+            font-size: 1.5rem;
+            color: #999;
+            margin-top: 20px;
+        }
+
+        /* Graphics Elements */
+        
+        /* The Bulb */
+        .bulb-container {
+            position: absolute;
+            top: 20%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 1s ease;
+            z-index: 50;
+        }
+        
+        .bulb-body {
+            width: 60px;
+            height: 60px;
+            background: #ddd;
+            border-radius: 50%;
+            position: relative;
+            box-shadow: inset -5px -5px 10px rgba(0,0,0,0.1);
+            transition: background 0.3s, box-shadow 0.3s;
+        }
+        .bulb-base {
+            width: 30px;
+            height: 25px;
+            background: #555;
+            position: absolute;
+            bottom: -20px;
+            left: 15px;
+            border-radius: 4px;
+        }
+
+        /* Light Beams (Flux) */
+        .flux-arrows {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 200px;
+            height: 200px;
+            transform: translate(-50%, -50%);
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+        .arrow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 80px;
+            height: 2px;
+            background: var(--accent-color);
+            transform-origin: 0 50%;
+        }
+        .arrow::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: -3px;
+            border-left: 6px solid var(--accent-color);
+            border-top: 4px solid transparent;
+            border-bottom: 4px solid transparent;
+        }
+
+        /* The Room / Environment */
+        .room {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            perspective: 1000px;
+            overflow: hidden;
+            display: flex;
+        }
+
+        /* Split Screen Logic */
+        .scene-container {
+            width: 100%; /* Default full width */
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+            transition: width 1s ease-in-out;
+            background: #f0f0f0;
+        }
+        
+        .scene-left {
+            border-right: 1px solid rgba(0,0,0,0.1);
+            z-index: 2;
+        }
+        .scene-right {
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 0%; /* Initially hidden */
+            z-index: 3;
+            border-left: 1px solid rgba(255,255,255,0.5);
+        }
+
+        /* Generic Objects in Room */
+        .wall {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 30%;
+            background: #e0e0e0;
+            transition: background 0.5s;
+        }
+        .floor {
+            position: absolute;
+            bottom: 0; left: 0; right: 0; height: 30%;
+            background: #d0d0d0;
+            transition: background 0.5s;
+        }
+        .desk {
+            position: absolute;
+            bottom: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 400px;
+            height: 20px;
+            background: #8d6e63; /* Wood */
+            border-radius: 4px;
+            z-index: 10;
+        }
+        .desk-leg {
+            position: absolute;
+            bottom: -80px;
+            width: 10px;
+            height: 80px;
+            background: #5d4037;
+        }
+
+        /* The Lighting Effect Overlay */
+        .light-cone {
+            position: absolute;
+            top: 20%; /* Matches bulb */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 150px solid transparent;
+            border-right: 150px solid transparent;
+            border-bottom: 500px solid rgba(255, 255, 200, 0); /* Start invisible */
+            filter: blur(20px);
+            transition: all 0.5s;
+            pointer-events: none;
+            mix-blend-mode: overlay;
+        }
+
+        /* Illuminance Visuals */
+        .lux-grid {
+            position: absolute;
+            bottom: 11%; /* On top of desk */
+            left: 50%;
+            transform: translateX(-50%) perspective(500px) rotateX(60deg);
+            width: 300px;
+            height: 200px;
+            background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 70%);
+            opacity: 0;
+            transition: opacity 0.5s;
+            mix-blend-mode: soft-light;
+        }
+
+        /* Fruits for CRI */
+        .fruit-bowl {
+            position: absolute;
+            bottom: 13%;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            opacity: 0;
+            transition: opacity 0.5s, filter 0.5s;
+            z-index: 15;
+        }
+        .apple {
+            width: 40px; height: 40px;
+            background: #ff4444;
+            border-radius: 50%;
+            position: relative;
+        }
+        .apple::after {
+            content:''; position: absolute; top: -5px; left: 18px;
+            width: 8px; height: 12px; background: green;
+            border-radius: 50% 0 50% 0;
+        }
+        .lemon {
+            width: 45px; height: 35px;
+            background: #ffeb3b;
+            border-radius: 50%;
+        }
+
+        /* Info Labels (Floating Text) */
+        .label-tag {
+            position: absolute;
+            background: rgba(0,0,0,0.7);
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        /* Specific Scene Styles */
+        .scene-living .wall { background: #f0ebe5; }
+        .scene-living .floor { background: #8d6e63; }
+        
+        .scene-office .wall { background: #ecf0f1; }
+        .scene-office .floor { background: #bdc3c7; }
+        
+        .scene-museum .wall { background: #333; }
+        .scene-museum .floor { background: #444; } /* Dark theme */
+        
+        .scene-restaurant .wall { background: #2c2c2c; }
+        .scene-restaurant .floor { background: #3e2723; }
+
+        /* Comparison Overlay Text */
+        .comp-label {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: rgba(255,255,255,0.9);
+            text-shadow: 0 2px 5px rgba(0,0,0,0.5);
+            z-index: 20;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        /* Animation Keyframes */
+        @keyframes pulseLight {
+            0% { box-shadow: 0 0 20px rgba(255, 220, 100, 0.5); }
+            50% { box-shadow: 0 0 40px rgba(255, 220, 100, 0.8); }
+            100% { box-shadow: 0 0 20px rgba(255, 220, 100, 0.5); }
+        }
+
+        .glowing {
+            animation: pulseLight 2s infinite;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="stage">
+        <!-- Background Scene (Duplicated for Split Screen) -->
+        <div class="room">
+            <!-- LEFT SCREEN -->
+            <div id="scene-left" class="scene-container scene-left">
+                <div class="wall"></div>
+                <div class="floor"></div>
+                
+                <!-- Furniture -->
+                <div class="desk">
+                    <div class="desk-leg" style="left: 20px;"></div>
+                    <div class="desk-leg" style="right: 20px;"></div>
+                </div>
+                
+                <!-- Objects -->
+                <div class="fruit-bowl" id="bowl-left">
+                    <div class="apple"></div>
+                    <div class="lemon"></div>
+                    <div class="apple" style="background: #9c27b0"></div>
+                </div>
+
+                <!-- Lighting -->
+                <div class="light-cone" id="cone-left"></div>
+                <div class="lux-grid" id="lux-left"></div>
+                
+                <!-- Bulb Visual -->
+                <div class="bulb-container" id="bulb-left">
+                    <div class="bulb-body"></div>
+                    <div class="bulb-base"></div>
+                    <div class="flux-arrows" id="arrows-left">
+                        <!-- Arrows generated by JS -->
+                    </div>
+                </div>
+
+                <div class="comp-label" id="label-left"></div>
+            </div>
+
+            <!-- RIGHT SCREEN (Initially Hidden) -->
+            <div id="scene-right" class="scene-container scene-right">
+                <div class="wall"></div>
+                <div class="floor"></div>
+                
+                <div class="desk">
+                    <div class="desk-leg" style="left: 20px;"></div>
+                    <div class="desk-leg" style="right: 20px;"></div>
+                </div>
+
+                <div class="fruit-bowl" id="bowl-right">
+                    <div class="apple"></div>
+                    <div class="lemon"></div>
+                    <div class="apple" style="background: #9c27b0"></div>
+                </div>
+
+                <div class="light-cone" id="cone-right"></div>
+                <div class="lux-grid" id="lux-right"></div>
+
+                <div class="bulb-container" id="bulb-right">
+                    <div class="bulb-body"></div>
+                    <div class="bulb-base"></div>
+                </div>
+
+                <div class="comp-label" id="label-right"></div>
+            </div>
+        </div>
+
+        <!-- Title Card -->
+        <div id="title-card" class="layer">
+            <h1>LIGHT CONCEPTS</h1>
+            <p>光通量 · 照度 · 色温 · 显色性</p>
+        </div>
+
+        <!-- Subtitles -->
+        <div id="subtitle-box">
+            <span class="subtitle-cn"></span>
+            <span class="subtitle-en"></span>
+        </div>
+    </div>
+
+<script>
+    // --- Helper Functions ---
+
+    const $ = (id) => document.getElementById(id);
+    const setSub = (cn, en) => {
+        const box = $('subtitle-box');
+        box.style.opacity = 0;
+        setTimeout(() => {
+            box.querySelector('.subtitle-cn').textContent = cn;
+            box.querySelector('.subtitle-en').textContent = en;
+            box.style.opacity = 1;
+        }, 500);
+    };
+    
+    const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    const createArrows = (containerId) => {
+        const container = $(containerId);
+        container.innerHTML = '';
+        for(let i=0; i<8; i++) {
+            const arrow = document.createElement('div');
+            arrow.className = 'arrow';
+            arrow.style.transform = `translate(-50%, -50%) rotate(${i * 45}deg) translateX(40px)`;
+            container.appendChild(arrow);
+        }
+    };
+    createArrows('arrows-left');
+
+    // --- Animation State Managers ---
+
+    const resetScene = () => {
+        // Reset split screen
+        $('scene-left').style.width = '100%';
+        $('scene-right').style.width = '0%';
+        $('scene-left').className = 'scene-container scene-left'; // Remove theme classes
+        $('scene-right').className = 'scene-container scene-right';
+        
+        // Reset Objects
+        $('bowl-left').style.opacity = 0;
+        $('bowl-right').style.opacity = 0;
+        $('lux-left').style.opacity = 0;
+        $('arrows-left').style.opacity = 0;
+        
+        // Reset Light
+        setLight('left', { on: false });
+        setLight('right', { on: false });
+
+        // Labels
+        $('label-left').style.opacity = 0;
+        $('label-right').style.opacity = 0;
+    };
+
+    const setLight = (side, params) => {
+        // params: on(bool), color(hex/rgb), brightness(0-1), coneLength(px)
+        const bulb = $(`bulb-${side}`).querySelector('.bulb-body');
+        const cone = $(`cone-${side}`);
+        
+        if (!params.on) {
+            bulb.style.background = '#ddd';
+            bulb.style.boxShadow = 'none';
+            cone.style.borderBottomColor = 'rgba(0,0,0,0)';
+            return;
+        }
+
+        const color = params.color || '#ffdb99'; // default warm
+        const opacity = params.brightness || 0.6;
+        
+        bulb.style.background = '#fff';
+        bulb.style.boxShadow = `0 0 30px ${color}`;
+        
+        // Cone gradient simulation via border color
+        cone.style.borderBottomColor = color.replace(')', `, ${opacity})`).replace('rgb', 'rgba');
+    };
+
+    const showLabel = (side, text) => {
+        const el = $(`label-${side}`);
+        el.textContent = text;
+        el.style.opacity = 1;
+    }
+
+    // --- Main Sequence ---
+
+    const playSequence = async () => {
+        // 1. Intro
+        await wait(1000);
+        $('title-card').style.opacity = 0;
+        await wait(1000);
+        $('title-card').style.display = 'none';
+
+        // 2. Luminous Flux (光通量)
+        setSub("首先，我们来认识：光通量 (Luminous Flux)", "First, let's understand: Luminous Flux.");
+        await wait(3000);
+
+        setLight('left', { on: true, color: '#ffecb3', brightness: 0.8 });
+        setSub("光通量是光源发出的光能总量。", "Luminous flux is the total amount of light energy emitted by a source.");
+        await wait(3000);
+
+        $('arrows-left').style.opacity = 1;
+        setSub("你可以把它想象成从灯泡向四面八方射出的‘光线总数量’。", "Think of it as the total quantity of 'light rays' radiating in all directions.");
+        await wait(4000);
+
+        setSub("单位是流明 (Lumen, lm)。流明越高，光源本身越亮。", "The unit is Lumen (lm). Higher lumens mean a brighter light source.");
+        showLabel('left', 'Flux: 800 lm');
+        await wait(4000);
+        $('arrows-left').style.opacity = 0;
+        showLabel('left', '');
+
+
+        // 3. Illuminance (照度)
+        setSub("接下来是：照度 (Illuminance)", "Next is: Illuminance.");
+        await wait(3000);
+
+        $('lux-left').style.opacity = 1;
+        setSub("照度是物体表面接收到的光。", "Illuminance is the light received by a surface.");
+        await wait(3000);
+
+        setSub("光源很亮，但如果距离太远，照度也会降低。", "A source may be bright, but if it's too far, illuminance drops.");
+        // Animate bulb moving up
+        $('bulb-left').style.top = '10%';
+        $('lux-left').style.opacity = 0.3; // dimmer
+        await wait(2000);
+        // Move back
+        $('bulb-left').style.top = '20%';
+        $('lux-left').style.opacity = 1; // bright
+        await wait(2000);
+
+        setSub("单位是勒克斯 (Lux, lx)。阅读需要高照度，休息则需要低照度。", "The unit is Lux (lx). Reading needs high lux, relaxing needs low lux.");
+        showLabel('left', 'Illuminance: 500 lx');
+        await wait(4000);
+        $('lux-left').style.opacity = 0;
+        showLabel('left', '');
+
+
+        // 4. Color Temperature (色温)
+        setSub("第三个概念：色温 (Color Temperature)", "Third concept: Color Temperature.");
+        await wait(3000);
+
+        setSub("色温描述光的颜色倾向，单位是开尔文 (K)。", "It describes the color characteristic of light, measured in Kelvin (K).");
+        await wait(3000);
+
+        // Warm
+        setLight('left', { on: true, color: 'rgb(255, 147, 41)', brightness: 0.6 });
+        showLabel('left', '2700K (Warm)');
+        setSub("低色温 (如2700K) 偏黄，给人温暖、放松的感觉。", "Low Kelvin (e.g., 2700K) is yellowish, feeling warm and relaxing.");
+        await wait(4000);
+
+        // Neutral
+        setLight('left', { on: true, color: 'rgb(255, 255, 255)', brightness: 0.6 });
+        showLabel('left', '4000K (Neutral)');
+        setSub("中性色温 (如4000K) 接近自然光，清爽明亮。", "Neutral Kelvin (e.g., 4000K) is like natural light, clean and bright.");
+        await wait(4000);
+
+        // Cool
+        setLight('left', { on: true, color: 'rgb(201, 226, 255)', brightness: 0.6 });
+        showLabel('left', '6500K (Cool)');
+        setSub("高色温 (如6500K) 偏蓝，让人清醒，但可能觉得冷清。", "High Kelvin (e.g., 6500K) is bluish, keeping you alert but feeling cold.");
+        await wait(4000);
+        showLabel('left', '');
+
+
+        // 5. Color Rendering Index (显色性)
+        setLight('left', { on: true, color: '#fff', brightness: 0.7 });
+        setSub("最后是：显色性 (CRI / Ra)", "Finally: Color Rendering Index (CRI or Ra).");
+        await wait(3000);
+
+        $('bowl-left').style.opacity = 1;
+        setSub("它衡量光源还原物体真实颜色的能力。", "It measures how well a light source reveals the true colors of objects.");
+        await wait(3000);
+
+        // Low CRI simulation
+        $('bowl-left').style.filter = 'grayscale(0.6) brightness(0.8)';
+        showLabel('left', 'Ra 70 (Low)');
+        setSub("低显色性 (Ra < 80) 会让颜色看起来暗淡、失真。", "Low CRI (Ra < 80) makes colors look dull and distorted.");
+        await wait(4000);
+
+        // High CRI simulation
+        $('bowl-left').style.filter = 'grayscale(0) brightness(1.1) saturate(1.2)';
+        showLabel('left', 'Ra 95 (High)');
+        setSub("高显色性 (Ra > 90) 让颜色鲜艳饱满，接近太阳光下的效果。", "High CRI (Ra > 90) makes colors vivid, close to sunlight.");
+        await wait(4000);
+        
+        // Clear scene for comparisons
+        resetScene();
+        setSub("现在，让我们在不同场景中对比运用这些参数。", "Now, let's compare these parameters in different scenarios.");
+        await wait(3000);
+
+
+        // --- SCENARIO 1: LIVING ROOM (Color Temp Comparison) ---
+        setSub("场景一：客厅。保持照度不变，改变色温。", "Scene 1: Living Room. Constant Illuminance, changing Color Temp.");
+        $('scene-left').classList.add('scene-living');
+        $('scene-right').classList.add('scene-living');
+        
+        // Open split screen
+        $('scene-left').style.width = '50%';
+        $('scene-right').style.width = '50%';
+        
+        await wait(1000);
+
+        // Left: Warm
+        setLight('left', { on: true, color: 'rgb(255, 160, 60)', brightness: 0.5 }); // Warm
+        showLabel('left', '3000K (Warm)');
+        
+        // Right: Cool
+        setLight('right', { on: true, color: 'rgb(220, 240, 255)', brightness: 0.5 }); // Cool
+        showLabel('right', '6000K (Cool)');
+
+        setSub("左边3000K温馨舒适，右边6000K则显得像医院一样冷清。", "Left 3000K is cozy. Right 6000K feels sterile like a hospital.");
+        await wait(5000);
+
+
+        // --- SCENARIO 2: OFFICE (Illuminance Comparison) ---
+        resetScene();
+        await wait(500);
+        setSub("场景二：办公室。保持色温4000K，改变照度。", "Scene 2: Office. Constant 4000K, changing Illuminance.");
+        
+        $('scene-left').classList.add('scene-office');
+        $('scene-right').classList.add('scene-office');
+        $('scene-left').style.width = '50%';
+        $('scene-right').style.width = '50%';
+        
+        await wait(1000);
+
+        // Left: Dim
+        setLight('left', { on: true, color: 'rgb(255, 255, 240)', brightness: 0.2 }); 
+        $('lux-left').style.opacity = 0.2;
+        showLabel('left', '150 lx (Dim)');
+
+        // Right: Bright
+        setLight('right', { on: true, color: 'rgb(255, 255, 240)', brightness: 0.9 });
+        $('lux-right').style.opacity = 0.9;
+        showLabel('right', '500 lx (Standard)');
+
+        setSub("左边光线太暗容易疲劳，右边500lx符合办公标准，提升效率。", "Too dim on the left causes fatigue. 500lx on the right meets standards for efficiency.");
+        await wait(5000);
+
+
+        // --- SCENARIO 3: ART GALLERY (CRI Comparison) ---
+        resetScene();
+        await wait(500);
+        setSub("场景三：美术馆。观察静物，对比显色性。", "Scene 3: Art Gallery. Observing objects, comparing CRI.");
+
+        $('scene-left').classList.add('scene-museum');
+        $('scene-right').classList.add('scene-museum');
+        $('scene-left').style.width = '50%';
+        $('scene-right').style.width = '50%';
+
+        // Show fruits
+        $('bowl-left').style.opacity = 1;
+        $('bowl-right').style.opacity = 1;
+
+        await wait(1000);
+
+        // Left: Low CRI
+        setLight('left', { on: true, color: '#fff', brightness: 0.6 });
+        $('bowl-left').style.filter = 'grayscale(0.5) contrast(0.8)'; // Muddy look
+        showLabel('left', 'Ra 70');
+
+        // Right: High CRI
+        setLight('right', { on: true, color: '#fff', brightness: 0.6 });
+        $('bowl-right').style.filter = 'saturate(1.3) contrast(1.1)'; // Vivid
+        showLabel('right', 'Ra 98');
+
+        setSub("高显色性让艺术品和食物看起来更有质感。", "High CRI makes art and food look much more appealing.");
+        await wait(5000);
+
+
+        // --- SCENARIO 4: RESTAURANT (Mix: Lux + Temp) ---
+        resetScene();
+        await wait(500);
+        setSub("场景四：高级餐厅。综合调整照度和色温。", "Scene 4: Fine Dining. Adjusting both Lux and Temp.");
+
+        $('scene-left').classList.add('scene-restaurant');
+        $('scene-right').classList.add('scene-restaurant');
+        $('scene-left').style.width = '50%';
+        $('scene-right').style.width = '50%';
+
+        await wait(1000);
+
+        // Left: Fast Food style (High Lux, Cool)
+        setLight('left', { on: true, color: 'rgb(230, 240, 255)', brightness: 0.9 });
+        showLabel('left', 'High Lux + Cool');
+        
+        // Right: Romantic style (Low Lux, Warm)
+        setLight('right', { on: true, color: 'rgb(255, 180, 80)', brightness: 0.4 });
+        showLabel('right', 'Low Lux + Warm');
+
+        setSub("左边像快餐店，节奏快。右边私密浪漫，适合约会。", "Left feels like fast food, hurried. Right is intimate and romantic.");
+        await wait(5000);
+
+        // Outro
+        resetScene();
+        await wait(1000);
+        setSub("掌握这四个参数，你就是光影魔术师。", "Master these four parameters, and you become a magician of light.");
+        $('title-card').style.display = 'flex';
+        $('title-card').style.opacity = 1;
+        $('title-card').innerHTML = "<h1>谢谢观看</h1><p>Thanks for watching</p>";
+    };
+
+    // Start
+    window.onload = playSequence;
+
+</script>
+</body>
+</html>
